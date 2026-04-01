@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Entrando em Colapso</title>
+  <style>
+    body { margin:0; font-family: Arial; background:black; color:white; overflow:hidden; }
+    .screen { position:absolute; width:100%; height:100%; display:none; justify-content:center; align-items:center; flex-direction:column; text-align:center; }
+    .active { display:flex; }
+
+    .fade { position:fixed; inset:0; background:black; opacity:0; pointer-events:none; transition:0.4s; z-index:999; }
+    .fade.show { opacity:1; }
+
+    button {
+      margin-top:20px; padding:12px 25px; font-size:18px;
+      background:transparent; border:1px solid #00ff99; color:#00ff99;
+      cursor:pointer; border-radius:6px; transition:0.3s;
+    }
+    button:hover { background:#00ff99; color:black; box-shadow:0 0 20px #00ff99; }
+
+    .players button { display:block; margin:10px auto; width:200px; }
+
+    .marca-screen { background: radial-gradient(circle, #555 0%, #111 40%, #000 80%); }
+    .marca { width:300px; cursor:pointer; animation:pulse 2s infinite; }
+
+    @keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.05);}100%{transform:scale(1);} }
+
+    .characters { display:flex; width:100%; height:100%; }
+
+    .char {
+      flex:1; position:relative; filter:brightness(0.1);
+      transition:0.5s; cursor:pointer; animation:breathe 4s infinite;
+    }
+
+    @keyframes breathe {0%{transform:scale(1);}50%{transform:scale(1.01);}100%{transform:scale(1);} }
+    .char:hover { transform:scale(1.03); }
+
+    .char img { width:100%; height:100%; object-fit:contain; }
+
+    .char.active { filter:brightness(1.2); animation:none; transform:scale(1.05); }
+
+    .info { position:absolute; bottom:20px; width:100%; background:rgba(0,0,0,0.6); display:none; }
+    .char.active .info { display:block; }
+
+    .confirm { position:absolute; bottom:50px; padding:15px 30px; display:none; }
+    .confirm.show { display:block; animation:fadeIn 0.5s; }
+
+    @keyframes fadeIn { from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
+
+    /* efeitos finais */
+    .effect-green { background: radial-gradient(circle, rgba(0,255,180,0.3), black); }
+    .effect-purple { background: radial-gradient(circle, rgba(180,0,255,0.3), black); }
+    .effect-blue { background: radial-gradient(circle, rgba(100,200,255,0.3), black); }
+    .effect-red-dark { background: radial-gradient(circle, rgba(120,0,0,0.4), black); }
+    .effect-red-heavy { background: radial-gradient(circle, rgba(255,0,0,0.4), black); }
+
+    .message { margin-top:20px; font-size:22px; opacity:0; animation:fadeInMsg 2s forwards; }
+    @keyframes fadeInMsg { from{opacity:0;} to{opacity:1;} }
+
+    /* GLITCH */
+    .glitch {
+      animation: glitch 0.2s 3;
+    }
+
+    @keyframes glitch {
+      0% { transform: translate(0); }
+      25% { transform: translate(5px, -5px); }
+      50% { transform: translate(-5px, 5px); }
+      75% { transform: translate(3px, -3px); }
+      100% { transform: translate(0); }
+    }
+
+    /* TREMOR */
+    .shake {
+      animation: shake 0.3s;
+    }
+
+    @keyframes shake {
+      0%{transform:translate(0)}
+      25%{transform:translate(5px,0)}
+      50%{transform:translate(-5px,0)}
+      75%{transform:translate(5px,0)}
+      100%{transform:translate(0)}
+    }
+
+    /* FLASH OPHELIA */
+    .flash {
+      position:fixed;
+      inset:0;
+      background:white;
+      opacity:0;
+      pointer-events:none;
+      z-index:1000;
+    }
+
+    .flash.show {
+      animation: flashAnim 0.2s;
+    }
+
+    @keyframes flashAnim {
+      0%{opacity:1}
+      100%{opacity:0}
+    }
+
+  </style>
+</head>
+<body>
+
+<div id="fade" class="fade"></div>
+<div id="flash" class="flash"></div>
+
+<div id="screen1" class="screen active">
+  <img src="cabana.jpg">
+  <button onclick="transition(2)">Entrar em colapso?</button>
+</div>
+
+<div id="screen2" class="screen">
+  <h1>Ativar sua marca?</h1>
+  <button onclick="transition(3)">Sim</button>
+</div>
+
+<div id="screen3" class="screen">
+  <h1>Escolha seu nome</h1>
+  <div class="players">
+    <button onclick="selectPlayer('luan')">Luan</button>
+    <button onclick="selectPlayer('enzo')">Enzo</button>
+    <button onclick="selectPlayer('sherlock')">Sherlock</button>
+  </div>
+</div>
+
+<div id="screenMarca" class="screen marca-screen">
+  <img src="marca-luan.png" class="marca" onclick="transition(4)">
+</div>
+
+<div id="screen4" class="screen">
+  <div class="characters" id="characters"></div>
+  <button id="confirmBtn" class="confirm" onclick="confirmChoice()">Confirmar Marca</button>
+</div>
+
+<div id="screenFinal" class="screen marca-screen"></div>
+
+<script>
+  let selected = null;
+
+  const data = {
+    luan: [
+      { nome: "Ophelia", img: "ophelia.jpg", color: "green" },
+      { nome: "Kyle", img: "kyle.jpg", color: "purple" }
+    ],
+    enzo: [
+      { nome: "Jeff", img: "jeff.jpg", color: "blue" },
+      { nome: "Dudu", img: "dudu.jpg", color: "red-dark" }
+    ],
+    sherlock: [
+      { nome: "Verdade", img: "verdade.jpg", color: "blue" },
+      { nome: "Viver", img: "viver.jpg", color: "red-heavy" }
+    ]
+  };
+
+  function transition(n) {
+    const fade = document.getElementById('fade');
+    fade.classList.add('show');
+    setTimeout(() => {
+      nextScreen(n);
+      fade.classList.remove('show');
+    }, 300);
+  }
+
+  function nextScreen(n) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen' + n).classList.add('active');
+  }
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function selectPlayer(player) {
+    const container = document.getElementById('characters');
+    container.innerHTML = "";
+
+    data[player].forEach(char => {
+      const div = document.createElement('div');
+      div.classList.add('char');
+      div.dataset.color = char.color;
+      div.dataset.nome = char.nome;
+
+      div.innerHTML = `<img src="${char.img}">`;
+      div.onclick = () => selectCharacter(div);
+      container.appendChild(div);
+    });
+
+    if(player === 'luan') showScreen('screenMarca');
+    else transition(4);
+  }
+
+  function selectCharacter(el) {
+    document.querySelectorAll('.char').forEach(c => {
+      c.classList.remove('active');
+      c.style.boxShadow = 'none';
+    });
+
+    el.classList.add('active');
+    el.style.boxShadow = `0 0 80px ${getColor(el.dataset.color)}`;
+
+    selected = el;
+    document.getElementById('confirmBtn').classList.add('show');
+  }
+
+  function getColor(color) {
+    if(color === 'green') return '#00ff99';
+    if(color === 'purple') return 'violet';
+    if(color === 'blue') return '#66ccff';
+    if(color === 'red-dark') return '#550000';
+    if(color === 'red-heavy') return 'red';
+  }
+
+  function confirmChoice() {
+    const name = selected.dataset.nome;
+
+    if(name === 'Ophelia') {
+      document.getElementById('flash').classList.add('show');
+      setTimeout(showFinal, 200);
+    }
+    else if(name === 'Kyle') {
+      document.body.classList.add('shake');
+      setTimeout(showFinal, 300);
+    }
+    else if(name === 'Jeff') {
+      setTimeout(showFinal, 600);
+    }
+    else if(name === 'Dudu') {
+      document.body.classList.add('glitch');
+      setTimeout(showFinal, 400);
+    }
+    else if(name === 'Verdade') {
+      setTimeout(showFinal, 500);
+    }
+    else if(name === 'Viver') {
+      document.body.classList.add('shake');
+      setTimeout(showFinal, 700);
+    }
+  }
+
+  function showFinal() {
+    const final = document.getElementById('screenFinal');
+    final.innerHTML = '';
+    final.className = 'screen marca-screen active';
+
+    const name = selected.dataset.nome;
+
+    if(name === 'Ophelia') {
+      final.classList.add('effect-green');
+      final.innerHTML = '<img src="marca-ativa.jpg" class="marca"><div class="message">Ela já estava dentro de você.</div>';
+    }
+
+    if(name === 'Kyle') {
+      final.classList.add('effect-purple');
+      final.innerHTML = '<img src="marca-ativa.jpg" class="marca"><div class="message">Voce não escolheu... Voce apenas Fez</div>';
+    }
+
+    if(name === 'Jeff') {
+      final.classList.add('effect-blue');
+      final.innerHTML = '<img src="marca-ativa.jpg" class="marca"><div class="message">voce correu o suficiente para fazer a luz da esperança brilhar mais uma vez...</div>';
+    }
+
+    if(name === 'Dudu') {
+      final.classList.add('effect-red-dark');
+      final.innerHTML = '<img src=marca-ativa.jpg" class="marca"><div class="message">Cegado pela escuridão do odio...</div>';
+    }
+
+    if(name === 'Verdade') {
+      final.classList.add('effect-blue');
+      final.innerHTML = '<img src="marca-ativa.jpg" class="marca"><div class="message">Agora você vê e sente oq ninguem jamais sentiu...</div>';
+    }
+
+    if(name === 'Viver') {
+      final.classList.add('effect-red-heavy');
+      final.innerHTML = '<img src="marca-ativa.jpg" class="marca"><div class="message">Você escolheu continuar… pagando o preço.</div>';
+    }
+
+    transitionFinal();
+  }
+
+  function transitionFinal() {
+    const fade = document.getElementById('fade');
+    fade.classList.add('show');
+    setTimeout(() => {
+      showScreen('screenFinal');
+      fade.classList.remove('show');
+      document.body.classList.remove('shake','glitch');
+    }, 400);
+  }
+</script>
+
+</body>
+</html>
